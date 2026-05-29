@@ -19,6 +19,7 @@
 #define EPD_HEIGHT 250
 
 #define EPD_BUF_SIZE (((EPD_WIDTH + 7) / 8) * EPD_HEIGHT )
+#define EPD_BYTES_PER_ROW ((EPD_WIDTH + 7) / 8)
 
 #define _EPD_spiSettings (SPISettings(4000000, MSBFIRST, SPI_MODE0)) // NRF_SPIM_MODE_0, 4MHz
 
@@ -31,6 +32,7 @@ void _EPD_writeCommand(uint8_t);
 void _EPD_writeData(uint8_t);
 void _EPD_writeData(const uint8_t*, size_t);
 void _EPD_powerOff(void);
+void _EPD_stallBusy(void);
 
 void setup(void);
 void loop(void);
@@ -117,9 +119,7 @@ void _EPD_initDisplay(void){
 	_EPD_writeData(0xf7);
 	_EPD_writeCommand(0x20);
 	delay(1);
-	while(digitalRead(EPD_BUSY_PIN) == HIGH){
-		delay(1);
-	}
+	_EPD_stallBusy();
 }
 
 void _EPD_writeCommand(uint8_t command){
@@ -158,6 +158,59 @@ void _EPD_powerOff(void){
 	_EPD_writeData(0x01);
 }
 
+void _EPD_drawPixel(int16_t x, int16_t y, bool black){
+	if (x<0 || x >= EPD_WIDTH || y<0 || y >= EPD_HEIGHT){
+		return;
+	}
+
+	uint16_t i = y * EPD_BYTES_PER_ROW + (x / 8);
+	uint8_t mask = 0x80 >> (x % 8);
+
+	if (black) {
+		bw_buf[i] &= ~mask;   // 0 = black
+	} else {
+		bw_buf[i] |= mask;    // 1 = white
+	}
+}
+
+void _EPD_stallBusy(void){
+	while(digitalRead(EPD_BUSY_PIN) == HIGH){
+		delay(1);
+	}
+}
+
+void _EPD_fullRefresh(void){
+	_EPD_writeCommand(0x22);
+	_EPD_writeData(0xf7);
+	_EPD_writeCommand(0x20);
+	_EPD_stallBusy();
+}
+
+// updates display based on contents loaded in buffer
+void _EPD_updateRam(){
+	_EPD_writeCommand(0x4e);
+	_EPD_writeData(0x00);
+	_EPD_writeCommand(0x4f);
+	_EPD_writeData(0x00);
+	_EPD_writeData(0x00);
+	_EPD_writeCommand(0x24);
+	_EPD_writeData(bw_buf, EPD_BUF_SIZE);
+}
+
+void drawRectWithPixels(int x, int y, int w, int h) {
+	// top and bottom
+	for (int xx = x; xx < x + w; xx++) {
+		_EPD_drawPixel(xx, y, true);           // top edge
+		_EPD_drawPixel(xx, y + h - 1, true);   // bottom edge
+	}
+
+	// left and right
+	for (int yy = y; yy < y + h; yy++) {
+		_EPD_drawPixel(x, yy, true);           // left edge
+		_EPD_drawPixel(x + w - 1, yy, true);   // right edge
+	}
+}
+
 void gotoSleep(unsigned long time)
 {
   // shutdown when time reaches SLEEPING_DELAY ms
@@ -176,15 +229,25 @@ void gotoSleep(unsigned long time)
 }
 
 void setup(){
-	digitalWrite(13, OUTPUT);
+	pinMode(13, OUTPUT);
 	pinMode(LED_BUILTIN, OUTPUT);
 	digitalWrite(LED_BUILTIN, HIGH);
 	pinMode(LED_BUILTIN, OUTPUT);
 	_EPD_initDisplay();
-	_EPD_powerOff();
-	delay(1000);
-	digitalWrite(13, LOW);
+	//_EPD_powerOff();
+	//delay(1000);
+	//digitalWrite(13, LOW);
 
+	//_EPD_initDisplay();
+	for(size_t i = 0; i <= 50; i++){
+		//_EPD_drawPixel(i+20, i+20, true);
+
+	}
+
+	drawRectWithPixels(10, 10, 20, 20);
+	_EPD_updateRam();
+	_EPD_fullRefresh();
+	
 }
 void loop(){
 	gotoSleep(millis());
