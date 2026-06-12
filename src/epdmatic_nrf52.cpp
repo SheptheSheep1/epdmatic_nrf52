@@ -1,3 +1,4 @@
+#include "gfxfont.h"
 #include <epdmatic_nrf52.h>
 #include <Arduino.h>
 #include <SPI.h>
@@ -63,10 +64,8 @@ void _EPD_initDisplay(void){
 	_EPD_writeCommand(0x22);
 	_EPD_writeData(0xf7);
 	_EPD_writeCommand(0x20);
-	delay(1);
-	while(digitalRead(EPD_BUSY_PIN) == HIGH){
-		delay(1);
-	}
+	_EPD_stallBusy();
+
 
 	// write image in ram
 	_EPD_writeCommand(0x4e);
@@ -85,7 +84,6 @@ void _EPD_initDisplay(void){
 	_EPD_writeCommand(0x22);
 	_EPD_writeData(0xf7);
 	_EPD_writeCommand(0x20);
-	delay(1);
 	_EPD_stallBusy();
 }
 
@@ -212,3 +210,35 @@ void _EPD_drawBitmap1Bit(int16_t x, int16_t y, const uint8_t* bitmap, int16_t w,
 		}
 	}
 }
+
+// returns xAdvance
+uint8_t EPD_drawChar(int16_t x, int16_t y, unsigned char c, const GFXfont* font, bool black){
+	if (c < font-> first || c > font -> last) return 0;
+	const GFXglyph* glyph = &font->glyph[c - font->first];
+	const uint8_t* bmp = font->bitmap;
+	uint16_t bo = glyph->bitmapOffset;
+	uint8_t w = glyph->width, h = glyph->height;
+	int8_t xo = glyph->xOffset, yo = glyph->yOffset;
+	uint8_t bits = 0, bit = 0;
+
+	for(uint8_t yy = 0; yy < h; yy++){
+		for(uint8_t xx = 0; xx < w; xx++){
+			if (!(bit++ & 7)) bits = bmp[bo++];
+			if (bits & 0x80) _EPD_drawPixel(x+xo+xx, y+yo+yy, black);
+			bits <<= 1;
+		}
+	}
+	return glyph->xAdvance;
+	
+}
+
+void EPD_drawText(int16_t x, int16_t y, const char* str, const GFXfont* font, bool black){
+	while(*str){
+		if (*str == '\n'){
+			y += font->yAdvance; x=0;
+		}
+		else x += EPD_drawChar(x, y, (unsigned char)*str, font, black);
+		str++;
+	}
+}
+

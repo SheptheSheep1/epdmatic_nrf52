@@ -3,6 +3,7 @@
 
 #include <stdlib.h> // needed for size_t ig
 #include <stdint.h>
+#include "gfxfont.h"
 
 // constants
 #define EPD_RST_PIN (32 + 04)
@@ -48,5 +49,7 @@ void _EPD_fullRefresh(void);
 void _EPD_updateRam(void);
 void _EPD_drawRectWithPixels(int x, int y, int width, int height);
 void _EPD_drawBitmap1Bit(int16_t x, int16_t y, const uint8_t* bitmap, int16_t w, int16_t h, bool black);
+uint8_t EPD_drawChar(int16_t x, int16_t y, unsigned char c, const GFXfont* font, bool black);
+void EPD_drawText(int16_t x, int16_t y, const char* str, const GFXfont*, bool black);
 
 #endif // !EPDMATIC_NRF52

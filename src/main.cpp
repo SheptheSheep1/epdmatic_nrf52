@@ -4,6 +4,8 @@
 #include <SPI.h>
 #include "epdmatic_nrf52.h"
 #include "test_bitmap.h"
+#include "gfxfont.h"
+#include "TomThumb.h"
 
 // pins
 #define SLEEPING_DELAY 5000
@@ -47,6 +49,12 @@ void setup(){
 	}
 
 	//_EPD_drawRectWithPixels(10, 10, 20, 20);
+	_EPD_drawBitmap1Bit(20, 20, icon_fajr_16x16, 16, 16, true);
+	_EPD_drawBitmap1Bit(40, 20, icon_dhuhr_16x16, 16, 16, true);
+	_EPD_drawBitmap1Bit(60, 20, icon_asr_16x16, 16, 16, true);
+	_EPD_drawBitmap1Bit(80, 20, icon_maghrib_16x16, 16, 16, true);
+	_EPD_drawBitmap1Bit(100, 20, icon_isha_16x16, 16, 16, true);
+	EPD_drawText(150, 20, "what is up", &TomThumb, true);
 	_EPD_updateRam();
 	_EPD_fullRefresh();
 	
