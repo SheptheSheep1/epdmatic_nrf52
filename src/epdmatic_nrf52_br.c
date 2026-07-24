@@ -16,19 +16,20 @@ typedef struct {
 	void (*unlock)(void* ctx);
 } epd_io_t;
 
-void epd_swReset(epd_io_t* io){
-	io->lock(io->ctx);
-	io->spi_write_byte(io->ctx, 0x12);
-	io->unlock(io->ctx);
-}
+void epd_stallBusy(epd_io_t*);
+void epd_sendCmd(epd_io_t*, const uint8_t);
+void epd_sendData(epd_io_t*, const uint8_t*, size_t);
+void epd_swReset(epd_io_t*);
 
 void epd_stallBusy(epd_io_t* io){
-
+	while(io->busy_read(io->ctx)){
+		io->delay_ms(io->ctx, 1);
+	}
 }
 
 void epd_sendCmd(epd_io_t* io, const uint8_t cmd){
 	io->lock(io->ctx);
-	io->dc_write(io->ctx, !(_EPD_DC_ACTIVE));
+	io->dc_write(io->ctx, !(_EPD_DC_ACTIVE)); // as defined in the datasheet
 	io->cs_write(io->ctx, (_EPD_CS_ACTIVE));
 	//__writeByte(io, cmd);
 	io->spi_write(io->ctx, &cmd, 1);
@@ -38,5 +39,14 @@ void epd_sendCmd(epd_io_t* io, const uint8_t cmd){
 
 void epd_sendData(epd_io_t* io, const uint8_t* data, size_t len){
 	io->lock(io->ctx);
+	io->dc_write(io->ctx, (_EPD_DC_ACTIVE));
+	io->cs_write(io->ctx, (_EPD_CS_ACTIVE));
+	io->spi_write(io->ctx, data, len);
+	io->dc_write(io->ctx, !(_EPD_DC_ACTIVE));
+	io->cs_write(io->ctx, !(_EPD_CS_ACTIVE));
 	io->unlock(io->ctx);
+}
+
+void epd_swReset(epd_io_t* io){
+	epd_sendCmd(io, 0x12);
 }
